@@ -8,7 +8,11 @@ let package = Package(
         .library(name: "CVLCore", targets: ["CVLCore"]),
     ],
     targets: [
-        .target(name: "CVLCore"),
+        .target(
+            name: "CVLCore",
+            // OpenCC 词典和词汇规则，由 scripts/export-shared.mjs 从扩展版导出。
+            resources: [.copy("Resources")]
+        ),
         .testTarget(name: "CVLCoreTests", dependencies: ["CVLCore"]),
     ]
 )
