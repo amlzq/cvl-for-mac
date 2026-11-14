@@ -84,6 +84,34 @@ settingsCases.push(["tw/user-phrase", { defaultVariant: "zh-TW", userDictionary:
 settingsCases.push(["cn/user-phrase", { defaultVariant: "zh-CN", userDictionary: { phrases: { "zh-CN": [
   { id: "p1", from: "軟體", to: "软件", enabled: true },
 ] } } }]);
+// 边界：宽松档只查字形，用户词组不生效。
+settingsCases.push(["tw/relaxed-user-phrase", { defaultVariant: "zh-TW", detectionLevel: "relaxed", userDictionary: { phrases: { "zh-TW": [
+  { id: "r-software", from: "软件", to: "軟件", enabled: true },
+  { id: "r-mouse", from: "鼠标", to: "滑鼠器", enabled: true },
+] } } }]);
+// 边界：用户词组与内置规则重叠时，按起点靠前、词更长优先，同区间才比优先级。
+// 「软」「鼠」比同起点的内置「软件」「鼠标」短；「软件默认」比内置规则长。
+settingsCases.push(["tw/user-overlap", { defaultVariant: "zh-TW", userDictionary: { phrases: { "zh-TW": [
+  { id: "o-short", from: "软", to: "軟", enabled: true },
+  { id: "o-long", from: "软件默认", to: "軟體預設值", enabled: true },
+  { id: "o-mouse", from: "鼠", to: "滑", enabled: true },
+] } } }]);
+// 「件默」起点在内置「软件」之后且重叠：起点靠前的内置规则胜出，用户词组被丢弃。
+settingsCases.push(["tw/user-overlap-late", { defaultVariant: "zh-TW", userDictionary: { phrases: { "zh-TW": [
+  { id: "l-late", from: "件默", to: "件預", enabled: true },
+] } } }]);
+// 边界：允许词等于用户词组的原词时，该词组不报告，词内字形也不报告。
+settingsCases.push(["tw/allow-user-phrase", { defaultVariant: "zh-TW", userDictionary: {
+  allowPhrases: { "zh-TW": ["软件"] },
+  phrases: { "zh-TW": [
+    { id: "a-software", from: "软件", to: "軟件", enabled: true },
+    { id: "a-video", from: "视频", to: "視訊", enabled: true },
+  ] },
+} }]);
+// 边界：通用繁体 + 用户词组（此前只覆盖 zh-TW / zh-CN）。
+settingsCases.push(["hant/user-phrase", { defaultVariant: "zh-Hant", userDictionary: { phrases: { "zh-Hant": [
+  { id: "h-server", from: "服务器", to: "伺服器", enabled: true },
+] } } }]);
 
 const vectors: any[] = [];
 for (const [name, patch] of settingsCases) {
