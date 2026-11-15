@@ -3,6 +3,8 @@ import Foundation
 public let maxPhrasesPerVariant = 1000
 public let maxAllowPhrases = 1000
 public let maxImportFileBytes = 1024 * 1024
+/// 实时检查的最大字符数（UTF-16 码元），与浏览器扩展的 MAX_FULLTEXT_LENGTH 一致。
+public let maxCheckLength = 20_000
 
 /// 用户词库：允许词与自定义词组，均按目标地区分开保存。
 public struct UserDictionary: Codable, Equatable, Sendable {
@@ -64,6 +66,10 @@ public struct Settings: Codable, Equatable, Sendable {
         .checkSelection: ShortcutCombo(keyCode: 40, modifiers: ShortcutModifiers.ctrlShift, display: "⌃⇧K"),
         .convertSelection: ShortcutCombo(keyCode: 37, modifiers: ShortcutModifiers.ctrlShift, display: "⌃⇧L"),
         .toggleEnabled: ShortcutCombo(keyCode: 32, modifiers: ShortcutModifiers.ctrlShift, display: "⌃⇧U"),
+        // 对应扩展版的「接受下一处建议」：有浮窗时接受浮窗项，否则接受光标处问题。
+        .acceptSuggestion: ShortcutCombo(keyCode: 38, modifiers: ShortcutModifiers.ctrlShift, display: "⌃⇧J"),
+        // 对应扩展版的「忽略」：仅本次会话，不落盘。
+        .ignoreSuggestion: ShortcutCombo(keyCode: 34, modifiers: ShortcutModifiers.ctrlShift, display: "⌃⇧I"),
     ]
 
     public init(
@@ -106,7 +112,9 @@ public struct Settings: Codable, Equatable, Sendable {
         detectionLevel = try c.decodeIfPresent(DetectionLevel.self, forKey: .detectionLevel) ?? d.detectionLevel
         userDictionary = try c.decodeIfPresent(UserDictionary.self, forKey: .userDictionary) ?? d.userDictionary
         disabledApps = try c.decodeIfPresent([String].self, forKey: .disabledApps) ?? d.disabledApps
-        shortcuts = try c.decodeIfPresent([ShortcutAction: ShortcutCombo].self, forKey: .shortcuts) ?? d.shortcuts
+        // 新增动作在旧配置里缺失时回落到默认键位，避免设置页出现空绑定。
+        let decodedShortcuts = try c.decodeIfPresent([ShortcutAction: ShortcutCombo].self, forKey: .shortcuts) ?? [:]
+        shortcuts = Settings.defaultShortcuts.merging(decodedShortcuts) { _, new in new }
         language = try c.decodeIfPresent(InterfaceLanguage.self, forKey: .language) ?? d.language
         launchAtLogin = try c.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? d.launchAtLogin
         onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? d.onboardingCompleted

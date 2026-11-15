@@ -104,8 +104,10 @@ final class Coordinator {
         guard settings.isAppEnabled(focus.bundleID) else { clearUI(); return }
 
         let session = self.session
+        // 超长输入框（长文编辑器等）只检查前 2 万字，与扩展版上限一致。
+        let checkedText = Self.truncated(focus.text)
         let issues = await Task.detached(priority: .userInitiated) {
-            session.check(focus.text, settings: settings)
+            session.check(checkedText, settings: settings)
         }.value
         guard gen == generation else { return }
         current = (focus, issues)
@@ -164,18 +166,24 @@ final class Coordinator {
         updatePopup()
     }
 
+    /// 光标（折叠选区）落在某个未被忽略的问题词内时，返回该问题与其屏幕矩形。
+    private func caretIssue() -> (issue: Issue, rect: CGRect)? {
+        guard let cur = current, let snap = AXReader.snapshot(), snap.text == cur.focus.text,
+              snap.selection.length == 0 else { return nil }
+        let caret = snap.selection.location
+        guard let issue = cur.issues.first(where: { caret > $0.start && caret <= $0.end && !dismissedIssueIDs.contains($0.id) }),
+              let rect = markRects((snap, [issue])).first ?? nil else { return nil }
+        return (issue, rect)
+    }
+
     /// 光标落在问题词上时，在光标旁弹出建议浮窗。
     private func updatePopup() {
-        guard let cur = current, let snap = AXReader.snapshot(), snap.text == cur.focus.text else { suggestion.hide(); return }
-        let caret = snap.selection.location
-        guard snap.selection.length == 0,
-              let issue = cur.issues.first(where: { caret > $0.start && caret <= $0.end && !dismissedIssueIDs.contains($0.id) }),
-              let rect = markRects((snap, [issue])).first ?? nil else { suggestion.hide(); return }
-        if suggestion.issue?.id == issue.id { return }
-        suggestion.show(issue: issue, near: rect,
-                        onReplace: { [weak self] in self?.apply(issue) },
-                        onIgnore: { [weak self] in self?.ignore(issue) },
-                        onAllow: { [weak self] in self?.allow(issue) })
+        guard let hit = caretIssue() else { suggestion.hide(); return }
+        if suggestion.issue?.id == hit.issue.id { return }
+        suggestion.show(issue: hit.issue, near: hit.rect,
+                        onReplace: { [weak self] in self?.apply(hit.issue) },
+                        onIgnore: { [weak self] in self?.ignore(hit.issue) },
+                        onAllow: { [weak self] in self?.allow(hit.issue) })
     }
 
     private func showBadgeMenu(at point: CGPoint) {
@@ -240,6 +248,12 @@ final class Coordinator {
         store.settings.addAllowPhrase(issue.sourceText)
     }
 
+    /// 截断到 maxCheckLength 个 UTF-16 码元。截断点是前缀，问题偏移量对原文本仍然有效。
+    private static func truncated(_ text: String) -> String {
+        guard text.utf16.count > maxCheckLength else { return text }
+        return String(decoding: Array(text.utf16.prefix(maxCheckLength)), as: UTF16.self)
+    }
+
     private static func substring(_ text: String, _ range: Range<Int>) -> String? {
         let units = Array(text.utf16)
         guard range.upperBound <= units.count else { return nil }
@@ -256,8 +270,19 @@ final class Coordinator {
             Task { await selectionAction(convert: false) }
         case .convertSelection:
             Task { await selectionAction(convert: true) }
-        case .acceptSuggestion, .ignoreSuggestion:
-            break
+        case .acceptSuggestion:
+            // 浮窗打开时接受浮窗项，否则接受光标处的问题。
+            if let issue = suggestion.issue {
+                apply(issue)
+            } else if let hit = caretIssue() {
+                apply(hit.issue)
+            }
+        case .ignoreSuggestion:
+            if let issue = suggestion.issue {
+                ignore(issue)
+            } else if let hit = caretIssue() {
+                ignore(hit.issue)
+            }
         }
     }
 

@@ -239,7 +239,11 @@ struct ShortcutRecorder: View {
 struct ShortcutsTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach([ShortcutAction.checkSelection, .convertSelection, .toggleEnabled], id: \.self) {
+            ForEach(
+                [ShortcutAction.checkSelection, .convertSelection, .toggleEnabled,
+                 .acceptSuggestion, .ignoreSuggestion],
+                id: \.self
+            ) {
                 ShortcutRecorder(action: $0)
             }
             Divider()
@@ -255,18 +259,21 @@ struct LegalTab: View {
     @State private var showTerms = false
 
     private static func load(_ name: String) -> String {
-        let lang = Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") == true ? "zh-Hans" : "en"
         let isChinese: Bool = {
             switch SettingsStore.shared.settings.language {
             case .en: return false
-            case .system: return lang == "zh-Hans"
+            case .system: return Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") == true
             default: return true
             }
         }()
-        let file = "\(name).\(isChinese ? "zh-Hans" : "en")"
-        guard let url = Bundle.main.url(forResource: file, withExtension: "md"),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return "" }
-        return text
+        // 繁体界面优先 zh-Hant，缺失时回退 zh-Hans，再回退 en，避免出现空白页。
+        for lang in (isChinese ? ["zh-Hant", "zh-Hans", "en"] : ["en"]) {
+            if let url = Bundle.main.url(forResource: "\(name).\(lang)", withExtension: "md"),
+               let text = try? String(contentsOf: url, encoding: .utf8) {
+                return text
+            }
+        }
+        return ""
     }
 
     var body: some View {

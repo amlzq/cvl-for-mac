@@ -87,6 +87,17 @@ private func settings(for v: Vector.S) -> Settings {
     #expect(TextEdit.replacing(text, range: 2..<4, with: "軟體") == "这个軟體很好")
 }
 
+@Test func decodedSettingsMergeNewShortcutDefaults() throws {
+    // 旧版本只保存了三个快捷键，新增动作应回落到默认键位而不是留空。
+    // Swift 把「字符串 rawValue 作键的字典」编码成 [key, value, key, value, …] 数组。
+    let json = #"{"enabled":true,"shortcuts":["checkSelection",{"keyCode":40,"modifiers":327680,"display":"⌃⇧K"}]}"#
+    let decoded = try JSONDecoder().decode(Settings.self, from: Data(json.utf8))
+    #expect(decoded.shortcuts[.checkSelection]?.keyCode == 40)
+    #expect(decoded.shortcuts[.acceptSuggestion] != nil)
+    #expect(decoded.shortcuts[.ignoreSuggestion] != nil)
+    #expect(decoded.shortcuts.count == Settings.defaultShortcuts.count)
+}
+
 @Test func allowAndSettingsLimits() {
     var s = Settings(targetVariant: .zhTW)
     let first = s.addAllowPhrase("软件")

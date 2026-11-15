@@ -101,6 +101,8 @@ enum L10n {
         "shortcut.checkSelection": ("Check selected text", "检查选中文本"),
         "shortcut.convertSelection": ("Convert selected text", "转换选中文本并写回"),
         "shortcut.toggleEnabled": ("Toggle checking", "开关检查"),
+        "shortcut.acceptSuggestion": ("Accept the current suggestion", "接受当前建议"),
+        "shortcut.ignoreSuggestion": ("Ignore the current suggestion once", "忽略当前建议（本次）"),
         "shortcut.record": ("Press keys…", "按下快捷键…"),
         "shortcut.reset": ("Reset", "恢复默认"),
         "shortcut.popupHint": ("While a suggestion is shown: Tab or 1 replace · 2 ignore once · 3 add to allowed words · Esc dismiss.", "建议浮窗显示时：Tab 或 1 替换 · 2 忽略一次 · 3 加入允许词 · Esc 关闭。"),
